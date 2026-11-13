@@ -39,7 +39,8 @@ export function loaderGate({ port = DEFAULT_PORT, storybook = false, hint, name 
   port = Number(port);
   // Escaped for a double-quoted JS string; no regex in the emitted code on
   // purpose — escapes do not survive template literals.
-  const say = JSON.stringify(hint ?? `run show-and-tell serve (port ${port})`).slice(1, -1);
+  // `<` as \u003c too: this code can sit in an inline <script>, where `</script>` would end it.
+  const say = JSON.stringify(hint ?? `run show-and-tell serve (port ${port})`).slice(1, -1).replace(/</g, '\\u003c');
   // Sidecar down = no toolbar at all, which reads as "the review line is gone";
   // say so with a dismissible pill instead (it also flags a line left installed).
   const offline = `s.onerror=function(){var d=document.createElement("button");d.textContent="Review toolbar offline: ${say} \\u00d7";d.title="Dismiss";d.style.cssText="position:fixed;right:12px;bottom:12px;z-index:2147483647;font:12px system-ui;padding:7px 11px;border:0;border-radius:6px;background:#1a1a1a;color:#fff;opacity:.9;cursor:pointer";d.onclick=function(){d.remove()};document.body.appendChild(d)};`;

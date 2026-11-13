@@ -76,11 +76,11 @@ test('editTarget: page copy files yes, tooling no', () => {
 });
 
 test('share: no local paths, no code strings, no raw copy map; one-slash redirect', async (t) => {
-  const SECRET = 'not-a-real-token-but-private-7f3a9c'; // shaped like no real provider's key, so secret scanners leave it alone
+  const PLANTED = 'not-a-real-token-but-private-7f3a9c'; // shaped like no real provider's key, so secret scanners leave it alone
   const dir = src({
     'index.html': '<h1>Start free trial</h1><script src="/app.js"></script>\n',
-    'app.js': `const API_TOKEN = "${SECRET}";\nexport const cta = "Start free trial";\n`,
-    'server/routes.js': `export const key = "${SECRET}";\n`,
+    'app.js': `const API_TOKEN = "${PLANTED}";\nexport const cta = "Start free trial";\n`,
+    'server/routes.js': `export const key = "${PLANTED}";\n`,
   });
   const upstream = createServer((req, res) => { res.writeHead(200, { 'Content-Type': 'text/html' }); res.end('<!doctype html><html><head></head><body><h1>Start free trial</h1></body></html>'); });
   const up = await listen(upstream);
@@ -107,7 +107,7 @@ test('share: no local paths, no code strings, no raw copy map; one-slash redirec
     let body = await res.json();
     if (body.id) body = (await (await fetch(`${base}${PREFIX}/__ag/copy-map/snapshot?id=${body.id}`, { headers: cookie })).json()).placed;
     const text = JSON.stringify(body);
-    assert.ok(!text.includes(SECRET), `${path} leaked a code string`);
+    assert.ok(!text.includes(PLANTED), `${path} leaked a code string`);
     assert.ok(!text.includes(dir), `${path} leaked the source path`);
     assert.deepEqual(body.code, []);
     assert.ok(text.includes('Start free trial'), `${path} should still carry the page copy`);
@@ -117,7 +117,7 @@ test('share: no local paths, no code strings, no raw copy map; one-slash redirec
   // secret's first letters) gets the same answer as any other refusal.
   const check = async (raw) => (await (await fetch(`${base}${PREFIX}/__ag/copy-map/check`, { method: 'POST', headers: { ...cookie, 'Content-Type': 'application/json' },
     body: JSON.stringify({ edits: [{ unit: { id: 'x', file: 'server/routes.js', raw, start: 20, end: 20 + raw.length, kind: 'string', quote: '"' }, to: 'y' }] }) })).json()).results[0];
-  const guesses = await Promise.all([SECRET.slice(0, 9), 'not-a-reX', SECRET].map(check));
+  const guesses = await Promise.all([PLANTED.slice(0, 9), 'not-a-reX', PLANTED].map(check));
   assert.ok(guesses.every((g) => g.status === 'cant'), JSON.stringify(guesses));
   assert.equal(new Set(guesses.map((g) => g.reason)).size, 1, 'every made-up unit gets the same answer');
 
@@ -150,4 +150,20 @@ test('voice uploads must be real audio containers', () => {
   assert.ok(sniffAudio(Uint8Array.from([0x1a, 0x45, 0xdf, 0xa3, 0, 0, 0, 0])));
   assert.ok(!sniffAudio(new TextEncoder().encode('#!/bin/sh\necho owned\n')));
   assert.ok(!sniffAudio(new Uint8Array(16)));
+});
+
+test('the copy classifier stays linear on long, odd strings (CodeQL js/redos)', async () => {
+  const { classify } = await import('../server/copy-map.js');
+  for (const x of ['.a' + ' a'.repeat(5000) + '!', '.' + 'a-'.repeat(5000) + '!', 'x: y;' + ' '.repeat(5000) + '!', '.a' + 'a'.repeat(40) + '!']) {
+    const t = performance.now();
+    classify({ text: x, kind: 'string' });
+    assert.ok(performance.now() - t < 200, `${x.slice(0, 12)}… took ${Math.round(performance.now() - t)} ms`);
+  }
+  for (const sel of ['.btn-primary', '.nav > a.active', '#hero .title:hover', '[data-state=open] .x']) assert.equal(classify({ text: sel, kind: 'string' }).copy, 'no', sel);
+});
+
+test('share checks TLS for any upstream that is not this machine', async () => {
+  const { readFileSync: read } = await import('node:fs');
+  const src = read(new URL('../server/proxy.js', import.meta.url), 'utf8');
+  assert.ok(!/rejectUnauthorized:\s*false/.test(src), 'no unconditional rejectUnauthorized: false');
 });

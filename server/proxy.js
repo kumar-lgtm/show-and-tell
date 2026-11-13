@@ -83,7 +83,11 @@ export function createShareProxy({ target, name, key, config = {}, src, voiceLoc
   if (!/^https?:$/.test(up.protocol)) throw new Error(`--origin must be http(s), got ${target}`);
   const send = up.protocol === 'https:' ? httpsRequest : httpRequest;
   // Our own pool, so close() can let go of every connection to the dev server.
-  const agent = up.protocol === 'https:' ? new HttpsAgent({ keepAlive: true, rejectUnauthorized: false }) : new HttpAgent({ keepAlive: true });
+  // A local dev server on https uses a self-signed certificate, so it isn't
+  // checked; anything else (a staging server) must present a valid one.
+  const loopback = /^(localhost|127\.\d+\.\d+\.\d+|\[::1\])$/i.test(up.hostname) || up.hostname.endsWith('.localhost');
+  const strictTls = !loopback;
+  const agent = up.protocol === 'https:' ? new HttpsAgent({ keepAlive: true, rejectUnauthorized: strictTls }) : new HttpAgent({ keepAlive: true });
   const live = new Set(); // spliced WebSocket sockets, which server.close() doesn't track
   const targetOrigins = new Set([up.origin, twin(up.origin)]);
   // Same origin as the page: no CORS list, the browser treats it as first-party.
@@ -150,7 +154,7 @@ export function createShareProxy({ target, name, key, config = {}, src, voiceLoc
       method: req.method, path: url.pathname + url.search, agent,
       // identity: the HTML has to be readable to inject into it.
       headers: { ...upstreamHeaders(req), 'accept-encoding': 'identity' },
-      rejectUnauthorized: false, // dev servers on https use self-signed certs
+      rejectUnauthorized: strictTls, // only a loopback dev server may use a self-signed cert
     }, (upRes) => {
       // The dev server died mid-response: end ours too, or the reviewer's
       // browser waits on a page that will never finish.
@@ -268,7 +272,7 @@ export function createShareProxy({ target, name, key, config = {}, src, voiceLoc
     const headers = upstreamHeaders(req, { keepUpgrade: true });
     const upReq = send({
       protocol: up.protocol, hostname: up.hostname, port: up.port || (up.protocol === 'https:' ? 443 : 80),
-      method: req.method, path: url.pathname + url.search, headers, rejectUnauthorized: false,
+      method: req.method, path: url.pathname + url.search, headers, rejectUnauthorized: strictTls,
     });
     upReq.on('upgrade', (upRes, upSocket, upHead) => {
       const lines = [`HTTP/1.1 ${upRes.statusCode} ${upRes.statusMessage}`];

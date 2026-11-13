@@ -15,9 +15,7 @@
 //   - A file is written whole, through a temp file and a rename, or not at all.
 //   - The default is a dry run. `yes` writes, then resolves each applied note.
 import { execFileSync } from 'node:child_process';
-import {
-  readFileSync, writeFileSync, renameSync, statSync, lstatSync, readdirSync, realpathSync, chmodSync, rmSync,
-} from 'node:fs';
+import { readFileSync, writeFileSync, renameSync, statSync, lstatSync, readdirSync, realpathSync, chmodSync, rmSync, openSync, fstatSync, closeSync, constants as fsConstants } from 'node:fs';
 import { join, relative, resolve, sep, basename, dirname, extname } from 'node:path';
 import { IGNORE_GLOBS, isOpen } from './agent.js';
 import { narrowCandidates } from './narrow-edit.js';
@@ -153,12 +151,20 @@ function walk(root, dir, out = []) {
   return out;
 }
 
+/** Opens without following a link (O_NOFOLLOW), then checks and reads that same file, so nothing can be swapped in between. */
+function readPlainFile(abs) {
+  let fd;
+  try { fd = openSync(abs, fsConstants.O_RDONLY | (fsConstants.O_NOFOLLOW ?? 0)); } catch { return null; }
+  try {
+    const st = fstatSync(fd);
+    if (!st.isFile() || st.size > MAX_BYTES) return null;
+    return readFileSync(fd);
+  } finally { closeSync(fd); }
+}
 /** Reads a candidate once; null for anything that isn't plain text we should touch. */
 function loadText(abs) {
-  let st;
-  try { st = lstatSync(abs); } catch { return null; }
-  if (!st.isFile() || st.size > MAX_BYTES) return null;
-  const buf = readFileSync(abs);
+  const buf = readPlainFile(abs);
+  if (buf == null) return null;
   if (buf.includes(0)) return null; // binary
   const text = buf.toString('utf8');
   if (text.includes('\uFFFD') && !buf.includes(Buffer.from('\uFFFD'))) return null; // not UTF-8; a rewrite would corrupt it

@@ -17,7 +17,7 @@
 // Whether a string is copy is a judgement (class names, selectors, event names
 // and keys are strings too), so each unit says `copy: 'yes' | 'maybe' | 'no'` and
 // why. Callers show `yes`, offer `maybe` behind a filter, and hide `no`.
-import { readFileSync, realpathSync, statSync, lstatSync } from 'node:fs';
+import { readFileSync, realpathSync, statSync, lstatSync, openSync, fstatSync, closeSync, constants as fsConstants } from 'node:fs';
 import { join, extname } from 'node:path';
 import { sourceFiles } from './apply.js';
 
@@ -569,7 +569,8 @@ const CODE_SHAPES = [
   [/^(?:\.{0,2}\/)[\w./@-]*$/, 'a path'],
   [/^[\w./@-]+\.(?:m?js|cjs|ts|tsx|jsx|css|scss|json|html?|png|jpe?g|webp|avif|gif|svg|mp[34]|webm|wav|ogg|woff2?|ttf|otf|ico|pdf|glb|gltf|hdr|wasm)(?:[?#].*)?$/i, 'a file name'],
   [/^&(?:#\d+|#x[0-9a-f]+|[a-z]+);$/i, 'an HTML entity'],
-  [/^(?:[#.][A-Za-z_-][\w-]*|\[[A-Za-z_][\w-]*(?:[~|^$*]?=[^\]]*)?\])(?:[\s>+~,]*(?:[#.][\w-]+|\[[^\]]+\]|[a-z][\w-]*|::?[\w-]+(?:\([^)]*\))?))*$/, 'a CSS selector'],
+  // Each token starts with its own character (a bare tag name only after a separator), so a long string can't backtrack exponentially.
+  [/^(?:[#.][A-Za-z_-][\w-]*|\[[A-Za-z_][\w-]*(?:[~|^$*]?=[^\]]*)?\])(?:[\s>+~,]+[a-z][\w-]*|[\s>+~,]*(?:[#.][\w-]+|\[[^\]]+\]|::?[\w-]+(?:\([^)]*\))?))*$/, 'a CSS selector'],
   [/(?:^|\s)-?\d*\.?\d+(?:px|rem|em|vh|vw|vmin|vmax|ms|deg|turn|fr|ch|dvh|svh|lvh)\b/, 'a CSS value'],
   [/^(?:rgba?|hsla?|oklch|oklab|lab|lch|color-mix|var|calc|clamp|min|max|url|linear-gradient|radial-gradient|conic-gradient|cubic-bezier|steps|translate[3dXYZ]*|rotate[3dXYZ]*|scale[3dXYZ]*|matrix(?:3d)?|blur|drop-shadow|inset)\(/i, 'a CSS value'],
   [/\b(?:sans-serif|serif|monospace|system-ui|ui-sans-serif|ui-monospace|cursive|-apple-system)\b/, 'a font stack'],
@@ -578,7 +579,7 @@ const CODE_SHAPES = [
   [/^[a-z0-9]+(?:[-_:][a-z0-9]+)+$/, 'a kebab/snake name'],
   [/^[A-Z0-9]+(?:_[A-Z0-9]+)+$/, 'a constant name'],
   [/^use (?:strict|client|server)$/, 'a directive'],
-  [/^(?:[\w-]+\s*:\s*[^;]+;\s*)+(?:[\w-]+\s*:[^;]*)?$/, 'inline CSS'],
+  [/^(?:[\w-]+\s*:\s*[^;\s][^;]*;\s*)+(?:[\w-]+\s*:[^;]*)?$/, 'inline CSS'],
   [/^[\w$]+(?:\.[\w$]+)+$/, 'a dotted name'],
   [/^\s*[{[][\s\S]*[}\]]\s*$/, 'JSON or code'],
   [/^(?=.*\d)[MmLlHhVvCcSsQqTtAaZz][\d\s.,+eE-]*(?:[MmLlHhVvCcSsQqTtAaZz][\d\s.,+eE-]*)*$/, 'SVG path data'],
@@ -771,11 +772,19 @@ export function scanFile(rel, text) {
   return out;
 }
 
+/** Opens without following a link (O_NOFOLLOW), then checks and reads that same file, so nothing can be swapped in between. */
+function readPlainFile(abs) {
+  let fd;
+  try { fd = openSync(abs, fsConstants.O_RDONLY | (fsConstants.O_NOFOLLOW ?? 0)); } catch { return null; }
+  try {
+    const st = fstatSync(fd);
+    if (!st.isFile() || st.size > MAX_BYTES) return null;
+    return readFileSync(fd);
+  } finally { closeSync(fd); }
+}
 function loadText(abs) {
-  let st;
-  try { st = lstatSync(abs); } catch { return null; }
-  if (!st.isFile() || st.size > MAX_BYTES) return null;
-  const buf = readFileSync(abs);
+  const buf = readPlainFile(abs);
+  if (buf == null) return null;
   if (buf.includes(0)) return null;
   const text = buf.toString('utf8');
   const lines = text.split('\n').length;
