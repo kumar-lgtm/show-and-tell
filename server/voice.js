@@ -1,6 +1,20 @@
 // Portable request/response layer, shared by the Node server and hosted adapter.
 // Audio is used only for this request. It is never placed in annotation JSON.
 export const VOICE_LIMITS = Object.freeze({ maxDurationMs: 300000, maxBytes: 16 * 1024 * 1024, maxConcurrent: 1, requestsPerMinute: 10, timeoutMs: 120000 });
+/**
+ * The declared type is the browser's word; the first bytes are the file's. Only
+ * real audio containers reach the decoder (PyAV/ffmpeg locally, a provider hosted).
+ */
+export function sniffAudio(b) {
+  const at = (i, ...xs) => xs.every((x, k) => b[i + k] === x);
+  const ascii = (i, str) => at(i, ...Array.from(str, (c) => c.charCodeAt(0)));
+  return (ascii(0, 'RIFF') && ascii(8, 'WAVE'))   // WAV
+    || at(0, 0x1a, 0x45, 0xdf, 0xa3)               // WebM / Matroska
+    || ascii(0, 'OggS')                            // Ogg (Opus, Vorbis)
+    || ascii(4, 'ftyp')                            // MP4 / M4A
+    || ascii(0, 'fLaC')                            // FLAC
+    || ascii(0, 'ID3') || (b[0] === 0xff && (b[1] & 0xe0) === 0xe0); // MP3
+}
 const TYPES = new Set(['audio/webm', 'audio/ogg', 'audio/wav', 'audio/x-wav', 'audio/mp4', 'audio/mpeg', 'audio/flac']);
 export const voiceError = (status, message) => Object.assign(new Error(message), { status });
 const json = (body, status = 200, headers = {}) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store', ...headers } });
@@ -79,6 +93,7 @@ export async function readVoiceInput(request, limits = VOICE_LIMITS) {
   if (!(audio instanceof Blob) || !audio.size) throw voiceError(400, 'Add a non-empty audio recording.');
   if (audio.size > limits.maxBytes) throw voiceError(413, 'The recording is too large.');
   if (!TYPES.has(audio.type.split(';')[0].toLowerCase())) throw voiceError(415, 'This audio format is not supported.');
+  if (!sniffAudio(new Uint8Array(await audio.slice(0, 16).arrayBuffer()))) throw voiceError(415, 'This audio format is not supported.');
   if (!Number.isFinite(durationMs) || durationMs < 1 || durationMs > limits.maxDurationMs) throw voiceError(422, `Recording duration must be between 1 and ${limits.maxDurationMs} milliseconds.`);
   return { audio, durationMs: Math.round(durationMs) };
 }

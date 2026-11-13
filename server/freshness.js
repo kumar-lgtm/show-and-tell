@@ -20,7 +20,7 @@ import { sourceFiles } from './apply.js';
 export const SLACK_MS = 1000;
 const MAX_PATHS = 400;
 
-export function createFreshness(src) {
+export function createFreshness(src, { remote = false } = {}) {
   const root = resolve(src);
   let realRoot = root;
   try { realRoot = realpathSync(root); } catch { /* a missing src maps nothing */ }
@@ -62,6 +62,7 @@ export function createFreshness(src) {
   function mapPath(path, { doc = false } = {}) {
     let p = String(path || '');
     if (p.startsWith('/@fs/')) {
+      if (remote) return null; // an absolute path would answer "is this where your project lives?"
       const r = relative(root, resolve(p.slice(4)));
       return r && !r.startsWith('..') && !isAbsolute(r) && mtimeOf(r) != null ? r.split(sep).join('/') : null;
     }

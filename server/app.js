@@ -19,8 +19,9 @@ import { voiceTranscriberFromEnv } from './voice-providers.js';
 import { createVoiceBudget } from './voice-budget.js';
 import { publicAgentWork } from './agent-work.js';
 import { extractCopy } from './copy-map.js';
+import { editTarget } from './apply.js';
 import { placeCopy } from './copy-place.js';
-import { checkCopyEdits } from './copy-edit.js';
+import { checkCopyEdits, relativeParts } from './copy-edit.js';
 import { createFreshness } from './freshness.js';
 import { shotFile } from './shots.js';
 import { managedLocalTranscriber } from './voice-local.js';
@@ -70,7 +71,7 @@ export const twin = (o) => o.includes('//localhost') ? o.replace('//localhost', 
  *                             gate and a public (tunnel) host that is not known in advance.
  *                             `false` turns the check off.
  */
-export function createReviewApp({ name, base, origins = [], config = {}, hosts, voiceTranscriber, voiceLocal = false, voiceLimits, voiceBudget, src = process.cwd() }) {
+export function createReviewApp({ name, base, origins = [], config = {}, hosts, voiceTranscriber, voiceLocal = false, voiceLimits, voiceBudget, src = process.cwd(), remote = false }) {
   const allowed = new Set(origins.flatMap((o) => [o, twin(o)]));
   const allowedHosts = hosts === false ? null : hosts ? new Set([...hosts].map((h) => String(h).toLowerCase())) : hostsFor(base);
   const routeKey = config.routeKey ?? null;
@@ -81,6 +82,19 @@ export function createReviewApp({ name, base, origins = [], config = {}, hosts, 
     limits: voiceLimits,
     budget: voiceBudget === undefined ? createVoiceBudget(name, process.env.AGENTATION_KIT_VOICE_DAILY_SECONDS ?? 1800) : voiceBudget,
   });
+  // Over `share` (remote: true) the page belongs to someone who isn't on this
+  // machine. They get the copy the page shows and its source file names, never
+  // the strings judged to be code (where a hard-coded token would sit), and no
+  // absolute paths. Outline scope comes from the page, so it can't be trusted to narrow this.
+  const shareable = (placed) => {
+    if (!remote) return placed;
+    const code = new Set((placed.code || []).flatMap((f) => f.groups.flatMap((g) => g.units)));
+    // Only pieces `apply` could ever write: no server code, config or tooling files.
+    const units = Object.fromEntries(Object.entries(placed.units || {}).filter(([id, u]) => u.copy !== 'no' && !code.has(id) && editTarget(u.file)));
+    const keep = (ids) => (ids || []).filter((id) => id in units);
+    const items = (placed.items || []).map((i) => (i.units ? { ...i, units: keep(i.units) } : i));
+    return { ...placed, root: undefined, code: [], items, units, stats: { ...placed.stats, code: 0 } };
+  };
   const js = (tag) => tag.replace(/^\s*<script>/, '').replace(/<\/script>\s*$/, '');
   const isolate = `(function(){
     var NAME = ${JSON.stringify(name)}, MARK = "sk-dev-project", STASH = "sk-dev-stash:";
@@ -134,6 +148,12 @@ document.head.appendChild(s);
   // the view re-opens from the page if one expires.
   const snapshots = new Map();
   const SNAPSHOT_MS = 6 * 60 * 60 * 1000, SNAPSHOT_MAX = 24;
+  /** A unit from a live snapshot, as the server built it (never the page's copy of it). */
+  const issuedUnit = (id) => {
+    if (typeof id !== 'string') return null;
+    for (const v of snapshots.values()) { const u = v.placed?.units?.[id]; if (u && u.copy !== 'no') return u; }
+    return null;
+  };
   const keepSnapshot = (value) => {
     const now = Date.now();
     for (const [k, v] of snapshots) if (now - v.createdAt > SNAPSHOT_MS) snapshots.delete(k);
@@ -145,7 +165,7 @@ document.head.appendChild(s);
   const viewFile = (f) => readFileSync(new URL(`./copy-view/${f}`, import.meta.url));
   const FONT_FILES = new Map(['dm-sans.woff2', 'bricolage-grotesque.woff2', 'dm-mono.woff2'].map((f) => [f, () => readFileSync(new URL(`./fonts/${f}`, import.meta.url))]));
   // Is the reviewer's page older than its source? (freshness.js, toolbar/fresh.js)
-  const freshness = createFreshness(src);
+  const freshness = createFreshness(src, { remote });
 
   const readBody = async (req, maxBytes = 262144) => {
     const chunks = []; let length = 0;
@@ -172,7 +192,7 @@ document.head.appendChild(s);
 
     try {
       const url = new URL(req.url, 'http://127.0.0.1');
-      if (path === '/' || path === '') return send(res, 200, { ok: true, name, origin: [...allowed], bundle: bundlePath(), store: STORE });
+      if (path === '/' || path === '') return send(res, 200, remote ? { ok: true, name } : { ok: true, name, origin: [...allowed], bundle: bundlePath(), store: STORE });
       if (path === '/loader.js') {
         // The page names the project it was installed for (`/loader.js?name=…`).
         // Another project's server on this port must not take its notes. 200 with
@@ -214,7 +234,7 @@ document.head.appendChild(s);
         }
         const outline = body?.outline;
         if (!outline || !Array.isArray(outline.items)) return send(res, 422, { error: 'outline.items must be an array' });
-        const placed = placeCopy(outline, extractCopy(src));
+        const placed = shareable(placeCopy(outline, extractCopy(src)));
         const id = keepSnapshot({
           placed, url: String(outline.url || ''), title: String(outline.title || '').slice(0, 200),
           sessionId: typeof body.sessionId === 'string' ? body.sessionId.slice(0, 128) : null,
@@ -232,10 +252,25 @@ document.head.appendChild(s);
           return send(res, 400, { error: 'body must be JSON: {edits: [{unit, to}]}' });
         }
         if (!Array.isArray(body?.edits)) return send(res, 422, { error: 'edits must be an array' });
-        return send(res, 200, { results: checkCopyEdits(src, body.edits.slice(0, 2000)) });
+        if (!remote) return send(res, 200, { results: checkCopyEdits(src, body.edits.slice(0, 2000)) });
+        // Over share, a unit the page made up would turn this into an oracle
+        // ("is this text in that file?"). Only units the server put in a copy
+        // view snapshot are checked, as the server has them, and a refusal says
+        // nothing about the file.
+        const edits = body.edits.slice(0, 2000).map((e) => {
+          const u = issuedUnit(e?.unit?.id);
+          return u && typeof e.to === 'string' ? { unit: { ...u, parts: relativeParts(u) }, to: e.to } : null;
+        });
+        const checked = checkCopyEdits(src, edits.filter(Boolean));
+        let i = 0;
+        const results = edits.map((e) => {
+          const out = e ? checked[i++] : { status: 'cant' };
+          return out.status === 'cant' ? { status: 'cant', reason: 'this piece can’t be placed any more; reopen the copy view' } : out;
+        });
+        return send(res, 200, { results });
       }
       if (path === '/__ag/copy-map') {
-        if (req.method === 'GET') return send(res, 200, extractCopy(src));
+        if (req.method === 'GET') return remote ? send(res, 404, { error: 'not available over a share link' }) : send(res, 200, extractCopy(src));
         if (req.method !== 'POST') return send(res, 405, { error: 'GET or POST' });
         let outline;
         try { outline = JSON.parse((await readBody(req, 4 * 1024 * 1024)).toString() || '{}'); } catch (e) {
@@ -243,7 +278,7 @@ document.head.appendChild(s);
           return send(res, 400, { error: 'body must be JSON: {url, items, resources}' });
         }
         if (!outline || !Array.isArray(outline.items)) return send(res, 422, { error: 'items must be an array' });
-        return send(res, 200, placeCopy(outline, extractCopy(src)));
+        return send(res, 200, shareable(placeCopy(outline, extractCopy(src))));
       }
 
       // The page sends what it loaded and when; the answer is which of those files changed since.
@@ -300,7 +335,11 @@ document.head.appendChild(s);
       }
 
       if (path === '/__kv') {
-        if (req.method === 'GET') return send(res, 200, kvList(name, url.searchParams.get('prefix') || 'agentation'));
+        if (req.method === 'GET') {
+          const prefix = url.searchParams.get('prefix') || 'agentation';
+          // Over share, only the toolbar's own keys: the agent's status record and read receipts aren't the page's.
+          return send(res, 200, kvList(name, remote && !prefix.startsWith('agentation') ? 'agentation' : prefix));
+        }
         // Writes are limited to the toolbar's own keys: the agent's read receipt
         // and anything else in the store are not the page's to change.
         if (req.method === 'DELETE') {

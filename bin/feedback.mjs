@@ -47,7 +47,7 @@ const USAGE = [
   `       show-and-tell feedback <name> annotate <page url> "<comment>" [--selector <css>] [--severity ${SEVERITIES.join('|')}] [--replace] [--create]`,
   '                                           [--suggest-text "<new text>" | --suggest-tweak "<property>=<value>"]',
   '       show-and-tell feedback <name> clear-critique',
-  '       show-and-tell feedback <name> apply [id…] [--yes] [--src <dir>]',
+  '       show-and-tell feedback <name> apply [id…] [--yes] [--include-code <id,…>] [--src <dir>]',
   '       show-and-tell feedback <name> export [--format md|json] [--all] [--github | --pr <n>] [--repo owner/name] [--label x] [--yes]',
 ].join('\n');
 const COMMANDS = new Set(['list', 'json', 'wait', 'resolve', 'dismiss', 'reply', 'acknowledge', 'shot', 'annotate', 'clear-critique', 'apply', 'export']);
@@ -166,7 +166,7 @@ try {
 
   if (cmd === 'apply') {
     const ids = [id, ...rest].filter(Boolean);
-    const result = await applyEdits(p, { ids, yes: !!args.yes });
+    const result = await applyEdits(p, { ids, yes: !!args.yes, includeCode: typeof args['include-code'] === 'string' ? args['include-code'].split(',').map((x) => x.trim()).filter(Boolean) : [] });
     console.log(renderApply(result, { yes: !!args.yes }));
     process.exit(result.results.some((r) => r.status === 'failed') ? 1 : 0);
   }

@@ -2,7 +2,7 @@
 // install in a layout and no second terminal.
 //
 //   // astro.config.mjs
-//   import showAndTell from 'show-and-tell/astro';
+//   import showAndTell from '@kumar-lgtm/show-and-tell/astro';
 //   export default defineConfig({ integrations: [showAndTell()] });
 //
 // Dev only: every page's <head> gets the gated loader, and the review server

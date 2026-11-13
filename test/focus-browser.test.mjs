@@ -86,7 +86,7 @@ test('focus, panels, headers and bar polish', {
       if (light) localStorage.setItem('feedback-toolbar-theme', 'light');
       // A controlled microphone (as in voice-browser): Talk records without a device.
       navigator.mediaDevices.getUserMedia = async () => ({ getTracks: () => [{ stop() {} }] });
-      window.MediaRecorder = class { static isTypeSupported() { return true; } constructor() { this.mimeType = 'audio/webm'; this.state = 'inactive'; } start() { this.state = 'recording'; } stop() { this.state = 'inactive'; setTimeout(() => { this.ondataavailable?.({ data: new Blob(['qa-audio'], { type: this.mimeType }) }); this.onstop?.(); }, 0); } };
+      window.MediaRecorder = class { static isTypeSupported() { return true; } constructor() { this.mimeType = 'audio/webm'; this.state = 'inactive'; } start() { this.state = 'recording'; } stop() { this.state = 'inactive'; setTimeout(() => { this.ondataavailable?.({ data: new Blob([new Uint8Array([0x1a,0x45,0xdf,0xa3]), 'qa-audio'], { type: this.mimeType }) }); this.onstop?.(); }, 0); } };
     }, light);
     const page = await context.newPage(); page.on('pageerror', (e) => errors.push(e.message));
     await page.goto(origin);

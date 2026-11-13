@@ -2,7 +2,7 @@
 // the entry file and no second terminal.
 //
 //   // vite.config.js
-//   import showAndTell from 'show-and-tell/vite';
+//   import showAndTell from '@kumar-lgtm/show-and-tell/vite';
 //   export default { plugins: [showAndTell()] };
 //
 // Dev server only. index.html gets the gated loader at serve time (never

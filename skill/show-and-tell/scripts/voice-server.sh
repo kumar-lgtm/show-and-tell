@@ -14,6 +14,7 @@ KIT="${SHOW_AND_TELL_KIT:-$(cd -P "$(dirname "${BASH_SOURCE[0]}")" && cd ../../.
 # The data folder is ~/.show-and-tell; a machine that used the tool under its old name keeps ~/.agentation-kit.
 DATA="$HOME/.show-and-tell"; [ ! -d "$DATA" ] && [ -d "$HOME/.agentation-kit" ] && DATA="$HOME/.agentation-kit"
 VENV="${SHOW_AND_TELL_VENV:-$DATA/voice-venv}"
+REQS="$(cd -P "$(dirname "${BASH_SOURCE[0]}")" && pwd)/voice-requirements.txt"   # exact pins
 PORT="${PORT:-55945}"
 MODEL="${MODEL:-base}"
 START_TIMEOUT="${START_TIMEOUT:-600}"   # the first run downloads the model
@@ -42,13 +43,14 @@ fi
 # faster-whisper's dependencies ship wheels for Python 3.10–3.13 only; the
 # system python3 can be newer and then tries to compile Rust.
 # PyAV 16+ dropped an argument faster-whisper 1.2 still passes (decode fails),
-# so pin av<16. Check the import, not just the venv, so a half-built venv is rebuilt.
-if ! "$VENV/bin/python" -c "import faster_whisper, av; assert int(av.__version__.split('.')[0]) < 16" >/dev/null 2>&1; then
+# so av stays below 16 (pinned with everything else in voice-requirements.txt). Check the import, not just the venv, so a half-built venv is rebuilt.
+# A venv built from other pins (an older release, or before pinning) is rebuilt once.
+if ! cmp -s "$REQS" "$VENV/.requirements" || ! "$VENV/bin/python" -c "import faster_whisper, av; assert int(av.__version__.split('.')[0]) < 16" >/dev/null 2>&1; then
   echo "Setting up $VENV (one time)…"
   rm -rf "$VENV"
   if command -v uv >/dev/null 2>&1; then
     uv venv --quiet --python 3.12 "$VENV"
-    uv pip install --quiet --python "$VENV/bin/python" faster-whisper "av<16"
+    uv pip install --quiet --python "$VENV/bin/python" -r "$REQS"
   else
     PY=""
     for v in 3.12 3.13 3.11 3.10; do
@@ -57,8 +59,9 @@ if ! "$VENV/bin/python" -c "import faster_whisper, av; assert int(av.__version__
     done
     [ -n "$PY" ] || { echo "Need Python 3.10–3.13 for faster-whisper (or install uv)." >&2; exit 1; }
     "$PY" -m venv "$VENV"
-    "$VENV/bin/python" -m pip install --quiet faster-whisper "av<16"
+    "$VENV/bin/python" -m pip install --quiet -r "$REQS"
   fi
+  cp "$REQS" "$VENV/.requirements"
 fi
 PYTHON="$VENV/bin/python"
 

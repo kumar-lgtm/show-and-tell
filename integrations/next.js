@@ -1,11 +1,11 @@
 // Next.js: start the review server with `next dev`.
 //
 //   // next.config.mjs
-//   import { withShowAndTell } from 'show-and-tell/next';
+//   import { withShowAndTell } from '@kumar-lgtm/show-and-tell/next';
 //   export default withShowAndTell({ /* your config */ });
 //
 // Next can't inject HTML from its config, so the page side is a component:
-// render <ShowAndTell /> from 'show-and-tell/react' in the root layout. It
+// render <ShowAndTell /> from '@kumar-lgtm/show-and-tell/react' in the root layout. It
 // renders nothing outside development, so it can stay committed.
 //
 // Build, start and lint phases leave the config untouched and start nothing.
@@ -34,7 +34,7 @@ export function withShowAndTell(nextConfig = {}, opts = {}) {
         port: Number(opts.port ?? DEFAULT_PORT),
         config: toolbarConfig(opts),
         origins: opts.origin ? [new URL(opts.origin).origin] : [],
-        loopback: true,
+        loopback: !opts.origin, // no origin given: trust the first localhost page (dev-server.js)
       });
       // Held for the life of the process: `next dev` has no close hook.
     }

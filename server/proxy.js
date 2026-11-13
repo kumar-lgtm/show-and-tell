@@ -87,7 +87,7 @@ export function createShareProxy({ target, name, key, config = {}, src, voiceLoc
   const live = new Set(); // spliced WebSocket sockets, which server.close() doesn't track
   const targetOrigins = new Set([up.origin, twin(up.origin)]);
   // Same origin as the page: no CORS list, the browser treats it as first-party.
-  const app = createReviewApp({ name, base: PREFIX, origins: [], config, ...(src ? { src } : {}), voiceLocal });
+  const app = createReviewApp({ name, base: PREFIX, origins: [], config, ...(src ? { src } : {}), voiceLocal, remote: true });
 
   const publicHost = (req) => String(req.headers['x-forwarded-host'] || req.headers.host || '').split(',')[0].trim();
   const isHttps = (req) => String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim() === 'https' || !!req.socket.encrypted;
@@ -230,7 +230,8 @@ export function createShareProxy({ target, name, key, config = {}, src, voiceLoc
       if (req.method === 'GET' || req.method === 'HEAD') {
         // Take the key out of the address bar (and out of history and Referer).
         url.searchParams.delete(KEY_PARAM);
-        res.writeHead(302, { Location: url.pathname + url.search, 'Cache-Control': 'no-store' });
+        // One leading slash: `//evil.com/x` would be a protocol-relative link off this host.
+        res.writeHead(302, { Location: '/' + url.pathname.replace(/^[\/\\]+/, '') + url.search, 'Cache-Control': 'no-store' });
         return res.end();
       }
     }

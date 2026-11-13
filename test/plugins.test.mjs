@@ -247,9 +247,11 @@ test('next: withShowAndTell passes the config through and starts only for the de
 
   assert.deepEqual(await cfg(PHASE_DEVELOPMENT_SERVER, {}), { reactStrictMode: true });
   assert.equal((await (await status(port)).json()).name, 'next-demo');
-  // Next doesn't say which port it took: any loopback origin is accepted.
+  // Next doesn't say which port it took: the first localhost page is trusted
+  // (with its 127.0.0.1 twin), and no other local origin after it.
   assert.equal((await status(port, 'http://localhost:3123')).status, 200);
-  assert.equal((await status(port, 'http://127.0.0.1:3000')).status, 200);
+  assert.equal((await status(port, 'http://127.0.0.1:3123')).status, 200);
+  assert.equal((await status(port, 'http://127.0.0.1:3000')).status, 403);
   assert.equal((await status(port, 'http://evil.example')).status, 403);
   // Loading the config again (Next does, per process) joins the same server.
   await cfg(PHASE_DEVELOPMENT_SERVER, {});

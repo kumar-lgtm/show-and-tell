@@ -249,7 +249,7 @@ test('a film: Talk starts it still, and each passage says where the film was', {
   await ctx.addInitScript(() => {
     localStorage.setItem('feedback-toolbar-reviewer', 'Ana');
     navigator.mediaDevices.getUserMedia = async () => ({ getTracks: () => [{ stop() {} }] });
-    class Recorder { static isTypeSupported() { return true; } constructor() { this.mimeType = 'audio/webm'; this.state = 'inactive'; } start() { this.state = 'recording'; } stop() { this.state = 'inactive'; setTimeout(() => { this.ondataavailable?.({ data: new Blob(['controlled-qa-audio'], { type: this.mimeType }) }); this.onstop?.(); }, 0); } }
+    class Recorder { static isTypeSupported() { return true; } constructor() { this.mimeType = 'audio/webm'; this.state = 'inactive'; } start() { this.state = 'recording'; } stop() { this.state = 'inactive'; setTimeout(() => { this.ondataavailable?.({ data: new Blob([new Uint8Array([0x1a,0x45,0xdf,0xa3]), 'controlled-qa-audio'], { type: this.mimeType }) }); this.onstop?.(); }, 0); } }
     window.MediaRecorder = Recorder;
   });
   const page = await ctx.newPage();

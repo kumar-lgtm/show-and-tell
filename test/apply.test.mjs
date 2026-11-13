@@ -156,9 +156,12 @@ test('regex and replacement special characters are literal', async () => {
   const name = uniqueName('special');
   const line = 'const price = "Only $9.99 (save 50%)* [today] + more? $& $1";\n';
   const dir = src({ 'src/price.js': line, 'src/other.js': 'const x = "Only $9X99 (save 50%)* [today] + more? $& $1";\n' });
-  await seedEdit(name, { from: 'Only $9.99 (save 50%)* [today] + more? $& $1', to: 'Only $4.99 (save 75%)* [today] + more? $& $2' });
-  const r = cli(['feedback', name, 'apply', '--yes', '--src', dir]);
+  const note = await seedEdit(name, { from: 'Only $9.99 (save 50%)* [today] + more? $& $1', to: 'Only $4.99 (save 75%)* [today] + more? $& $2' });
+  // So many symbols read as code to the scanner: held back until a person says yes.
+  assert.match(cli(['feedback', name, 'apply', '--yes', '--src', dir]).out, /held: it changes/);
+  const r = cli(['feedback', name, 'apply', '--yes', '--include-code', note.id, '--src', dir]);
   assert.match(r.out, /1 applied/, r.out);
+  assert.match(r.out, /WARNING: changes a string that looks like code/);
   assert.equal(read(dir, 'src/price.js'), 'const price = "Only $4.99 (save 75%)* [today] + more? $& $2";\n');
   assert.equal(read(dir, 'src/other.js'), 'const x = "Only $9X99 (save 50%)* [today] + more? $& $1";\n');
 });

@@ -21,7 +21,8 @@ import {
 import { join, relative, resolve, sep, basename, dirname, extname } from 'node:path';
 import { IGNORE_GLOBS, isOpen } from './agent.js';
 import { narrowCandidates } from './narrow-edit.js';
-import { planUnitEdit, applySplices, relocate, freshPlan } from './copy-edit.js';
+import { planUnitEdit, applySplices, relocate, freshPlan, currentUnit } from './copy-edit.js';
+import { scanFile } from './copy-map.js';
 
 const MAX_BYTES = 1024 * 1024;
 const LOCKFILES = new Set(['pnpm-lock.yaml', 'package-lock.json', 'npm-shrinkwrap.json', 'yarn.lock', 'bun.lock', 'bun.lockb',
@@ -53,6 +54,38 @@ function inMarkupText(content, start, end) {
   while (j < content.length && !isStop(j)) j++;
   return (content[i] === '>' || content[i] === '}') && (content[j] === '<' || content[j] === '{');
 }
+// Files an edit note may change: page copy lives in markup, scripts, content and
+// translation files. Everything else (package.json, shell scripts, CI, build and
+// tool config, dotfiles) is off limits even when the old text matches there,
+// because a note's FROM/TO comes from whoever can reach the review page, which
+// over `share` is a remote reviewer. Those files are edited by hand.
+const CONTENT_EXT = new Set([...MARKUP_EXT, '.md', '.markdown', '.txt', '.rst', '.adoc',
+  '.json', '.yaml', '.yml', '.toml', '.po', '.pot', '.strings', '.properties', '.csv']);
+const CONFIG_FILE = new RegExp([
+  '\\.(config|conf)\\.[a-z]+$',                                   // vite.config.ts, postcss.config.cjs
+  '(^|/)(package|composer|deno|vercel|turbo|nx|lerna|renovate|angular|firebase|now|tsconfig[^/]*|jsconfig[^/]*|wrangler)\\.jsonc?$',
+  '(^|/)(docker-compose[^/]*|compose|pnpm-workspace|netlify|fly|wrangler|codecov|mkdocs)\\.(ya?ml|toml)$',
+  '(^|/)(Cargo|pyproject|Pipfile)\\.toml$',
+].join('|'), 'i');
+const TOOL_DIRS = /^(scripts|bin|ci|tools|infra|deploy|k8s|terraform)\//i;   // at the project root (src/scripts is page code in Astro)
+// Code that runs on the server: an edit there changes what the server does, not
+// what the page says (API routes, middleware, env, SvelteKit/Remix server modules).
+const SERVER_CODE = /(^|\/)(api|server|servers|backend|functions|lambda|workers?|db|database|prisma)\/|(^|\/)(middleware|instrumentation|env|route)\.[cm]?[jt]sx?$|\.server\.[cm]?[jt]sx?$|(^|\/)\+server\.[jt]s$/i;
+// Data files hold copy only in translation and content folders, or as a locale file (en.json, fr-CA.yml).
+const DATA_EXT = new Set(['.json', '.yaml', '.yml', '.toml']);
+const CONTENT_DIRS = /(^|\/)(locales?|i18n|l10n|lang|langs|languages|translations?|messages|content|copy|strings|_data|data)\//i;
+const LOCALE_FILE = /(^|\/)[a-z]{2}([-_][A-Za-z]{2,4})?\.(json|ya?ml|toml)$/;
+
+/** May an edit note change this file (relative to --src)? */
+export function editTarget(rel) {
+  const f = rel.split(sep).join('/');
+  if (f.split('/').some((part) => part.startsWith('.'))) return false;
+  const ext = extname(f).toLowerCase();
+  if (!CONTENT_EXT.has(ext)) return false;
+  if (CONFIG_FILE.test(f) || TOOL_DIRS.test(f) || SERVER_CODE.test(f)) return false;
+  return !DATA_EXT.has(ext) || CONTENT_DIRS.test(f) || LOCALE_FILE.test(f);
+}
+
 const SKIP_DIRS = new Set(['node_modules', 'dist', 'build', 'out', '.next', '.svelte-kit', '.astro', '.agentation-kit', '.git']);
 
 const collapse = (s) => String(s ?? '').replace(/\s+/g, ' ').trim();
@@ -196,10 +229,12 @@ export function unifiedDiff(rel, before, after, start, oldEnd, newEnd, ctx = 2) 
  * @param {object} o
  * @param {string[]} [o.ids]  only these notes (default: every open text edit)
  * @param {boolean} [o.yes]   write the files and resolve the notes
+ * @param {string[]} [o.includeCode]  note ids whose held change (code-like text, a URL or an email) a person has okayed
  * @returns {Promise<{root, results: Array<{id, status: 'apply'|'applied'|'already'|'skipped'|'failed', reason?, file?, line?, diff?, from?, to?}>}>}
  *   status `apply` is a dry-run plan; `applied` was written and resolved.
  */
-export async function applyEdits(p, { ids = [], yes = false } = {}) {
+export async function applyEdits(p, { ids = [], yes = false, includeCode = [] } = {}) {
+  const allowCode = new Set(includeCode); // note ids a person has okayed
   const root = p.root;
   let rootReal;
   try { rootReal = realpathSync(root); } catch { throw new Error(`--src ${root} does not exist`); }
@@ -209,7 +244,9 @@ export async function applyEdits(p, { ids = [], yes = false } = {}) {
     ? ids.map((id) => p.get(id) || { id, missing: true })
     : p.items().filter((a) => (a.kind === 'edit' && a.edit) || isCopy(a));
 
-  const files = sourceFiles(root);
+  const all = sourceFiles(root);
+  const files = all.filter(editTarget);
+  const offLimits = all.filter((rel) => !editTarget(rel));
   const cache = new Map(); // rel → {abs, original, content} (content changes as notes apply)
   const textOf = (rel) => {
     if (!cache.has(rel)) {
@@ -229,6 +266,15 @@ export async function applyEdits(p, { ids = [], yes = false } = {}) {
     }
     return out;
   };
+  const offLimitsHits = (re, needle) => {
+    const out = [];
+    for (const rel of offLimits) {
+      const t = loadText(join(root, rel));
+      if (t == null || (needle && !t.includes(needle))) continue;
+      for (const m of matchesIn(re, t)) out.push({ rel, m, line: lineOf(t, m.index) });
+    }
+    return out;
+  };
   const longest = (text) => tokens(text).reduce((a, b) => (b.length > a.length ? b : a), '');
   const longestRun = (text) => (collapse(text).match(/[\p{L}\p{N}]+/gu) || []).reduce((a, b) => (b.length > a.length ? b : a), '');
   const where = (hits) => hits.slice(0, 3).map((h) => `${h.rel}:${h.line}`).join(', ') + (hits.length > 3 ? ', …' : '');
@@ -236,7 +282,8 @@ export async function applyEdits(p, { ids = [], yes = false } = {}) {
   // Copy edits (copy edit mode) carry the exact span they change: planned first,
   // all against the file as it was read, so two edits in one file can't shift
   // each other. Find-and-replace edits then run on the result.
-  const copyResults = planCopyEdits(notes.filter((a) => !a.missing && isCopy(a) && isOpen(a)), { files, textOf });
+  const scanned = new Map(); // rel → copy-map units, for the code-or-copy check
+  const copyResults = planCopyEdits(notes.filter((a) => !a.missing && isCopy(a) && isOpen(a)), { files, textOf, allowCode });
 
   const results = [];
   for (const a of notes) {
@@ -295,6 +342,8 @@ export async function applyEdits(p, { ids = [], yes = false } = {}) {
       Object.assign(r, { status: 'skipped', reason: `found ${live.length} times (${where(live)}). Ambiguous: edit by hand` }); continue;
     }
     if (!live.length) {
+      const there = offLimitsHits(exactPattern(from), longest(from));
+      if (there.length) { Object.assign(r, { status: 'skipped', reason: `only found in ${where(there)}, which apply never edits (config, scripts or tooling). If the change is wanted, make it by hand` }); continue; }
       Object.assign(r, { status: 'skipped', reason: diagnose(from, findAll, longestRun(from), where) }); continue;
     }
 
@@ -317,6 +366,21 @@ export async function applyEdits(p, { ids = [], yes = false } = {}) {
       if (added.length && !inMarkupText(f.content, m.index, m.index + m[0].length)) {
         Object.assign(r, { status: 'skipped', file: rel, line, reason: `the new text adds ${added.join(' ')}, which could end the string this text sits in (${extname(rel)}). Edit by hand` }); continue;
       }
+    }
+    // In a script or markup file, outside plain text between tags, the old text
+    // must sit in a string or attribute the scanner reads as copy: an href, a URL
+    // in an inline <script>, a key or selector is code, whatever the note says.
+    // Heuristics, so they hold a note back for a person rather than refusing it.
+    const held = (why) => {
+      if (allowCode.has(a.id)) { r.warning = why; return false; }
+      Object.assign(r, { status: 'skipped', file: rel, line, reason: CODE_HELD });
+      return true;
+    };
+    if (LINKISH.test(from) || LINKISH.test(to)) { if (held('changes a URL or email address')) continue; }
+    else if (MARKUP_EXT.has(extname(rel).toLowerCase()) && !inMarkupText(f.content, m.index, m.index + m[0].length)) {
+      if (!scanned.has(rel)) scanned.set(rel, scanFile(rel, f.content));
+      const unit = scanned.get(rel).find((u) => u.start <= m.index && m.index + m[0].length <= u.end);
+      if ((!unit || unit.copy === 'no') && held('changes a string that looks like code')) continue;
     }
     const next = f.content.slice(0, sp.start) + sp.text + f.content.slice(sp.end);
     r.diff = unifiedDiff(rel, f.content, next, sp.start, sp.end, sp.start + sp.text.length);
@@ -357,6 +421,12 @@ export async function applyEdits(p, { ids = [], yes = false } = {}) {
   return { root, results };
 }
 
+// Notes come from whoever can reach the review page (over `share`, someone else),
+// so a change to what looks like code (a URL, key, selector) waits for a person.
+const CODE_HELD = 'held: it changes a URL, an email address or text that looks like code (a key, selector or logic). Check it with the person you work for; if they want it, re-run with --include-code <this id>';
+// A URL, a bare domain with a path, or an email address: where a note could point people or data elsewhere.
+const LINKISH = /(https?:\/\/|www\.)|[\w.+-]+@[\w-]+\.[a-z]{2,}|\b[a-z0-9-]+\.[a-z]{2,}\//i;
+
 const isCopy = (a) => a.kind === 'copy' && a.copy && typeof a.copy.unit === 'object' && a.copy.unit && typeof a.copy.to === 'string';
 
 /**
@@ -366,7 +436,7 @@ const isCopy = (a) => a.kind === 'copy' && a.copy && typeof a.copy.unit === 'obj
  * refused. Sets each file's new content.
  * @returns {Map<id, result>}
  */
-function planCopyEdits(notes, { files, textOf }) {
+function planCopyEdits(notes, { files, textOf, allowCode = new Set() }) {
   const out = new Map();
   const known = new Set(files);
   const byFile = new Map(); // rel → [{start, end, text, id}]
@@ -394,6 +464,14 @@ function planCopyEdits(notes, { files, textOf }) {
     // Encode for the string as it is now (its quote, parts, script context), not as the snapshot saw it.
     const now = freshPlan(rel, f.original, u, to, loc.at, scans);
     if (now.error) { skip(`${now.error}. Re-open the copy view, or edit by hand`, { file: rel, line: lineOf(f.original, loc.at) }); continue; }
+    // A string the scanner judges to be code (a URL, key, selector, event name) is
+    // never rewritten from a note: it changes behaviour, not copy. Edit by hand.
+    const codeLike = currentUnit(rel, f.original, loc.at, u.raw, scans)?.copy === 'no';
+    const linkLike = LINKISH.test(u.raw) || LINKISH.test(to);
+    if (codeLike || linkLike) {
+      if (!allowCode.has(a.id)) { skip(CODE_HELD, { file: rel, line: lineOf(f.original, loc.at) }); continue; }
+      r.warning = linkLike ? 'changes a URL or email address' : 'changes a string that looks like code';
+    }
     const abs = now.splices.map((sp) => ({ start: loc.at + sp.start, end: loc.at + sp.end, text: sp.text, id: a.id }));
     const taken = byFile.get(rel) || [];
     // Overlapping ranges, or two edits at one point where either inserts: the order would decide the result.
@@ -427,7 +505,7 @@ export function renderApply({ root, results }, { yes = false } = {}) {
   if (!results.length) return `No open text edits. Nothing to apply under ${root}.`;
   out.push(yes ? `Applied under ${root}.` : `Dry run under ${root}: nothing written. Re-run with --yes to write these and resolve the notes.`);
   for (const r of writes) {
-    out.push('', `[${r.id}] ${r.file}:${r.line}${r.resolution ? ` · resolved` : ''}${r.resolveError ? ` · NOT resolved: ${r.resolveError}` : ''}`, r.diff);
+    out.push('', `[${r.id}] ${r.file}:${r.line}${r.warning ? ` · WARNING: ${r.warning}` : ''}${r.resolution ? ` · resolved` : ''}${r.resolveError ? ` · NOT resolved: ${r.resolveError}` : ''}`, r.diff);
   }
   if (already.length) {
     out.push('', `Already in source${yes ? ' (resolved, nothing written)' : ' (--yes resolves these without writing)'}:`);

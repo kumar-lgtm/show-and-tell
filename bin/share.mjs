@@ -57,7 +57,8 @@ server.listen(port, '127.0.0.1', () => {
   console.log(`local link   ${link(local)}`);
   console.log('');
   console.log('WARNING: anyone with the link (and its key) can use your dev server: every page,');
-  console.log('API route and HMR socket it serves. The key is the only protection. Stop `share`');
+  console.log('API route, source module and HMR socket it serves. The review tools add the page');
+  console.log('copy from files under --src (not code strings or paths). The key is the only protection. Stop `share`');
   console.log('(Ctrl-C) as soon as the review round is done.');
   console.log('');
   console.log(`feedback → show-and-tell feedback ${name} list`);

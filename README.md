@@ -18,6 +18,18 @@ node scripts/prototype.mjs   # try it: a demo page with the toolbar on http://12
 [transcript](docs/video/transcript.md). The same film plays on the demo page,
 [`docs/index.html`](docs/index.html): open that file in a browser.
 
+**Install** (Node 22.5 or newer; tested on macOS, voice needs macOS or Linux):
+
+```bash
+pnpm add -D @kumar-lgtm/show-and-tell    # in a project, for the framework plugins
+npx @kumar-lgtm/show-and-tell --help     # or run the CLI without installing
+```
+
+Every release on npm is built and published by this repo's GitHub Actions
+workflow, with [provenance](https://docs.npmjs.com/generating-provenance-statements):
+the npm page links each version to the commit and build that made it. The
+package has no dependencies and no install scripts.
+
 **Setting it up with an agent?** Paste this into your coding agent from inside
 your project:
 
@@ -170,13 +182,13 @@ added at serve time, so there's no second terminal and nothing to remove before
 committing. Builds are untouched.
 
 ```bash
-pnpm add -D github:kumar-lgtm/show-and-tell
+pnpm add -D @kumar-lgtm/show-and-tell     # or npm i -D, yarn add -D, bun add -d
 ```
 
 **Vite** (`vite.config.js`):
 
 ```js
-import showAndTell from 'show-and-tell/vite';
+import showAndTell from '@kumar-lgtm/show-and-tell/vite';
 
 export default { plugins: [showAndTell()] };
 ```
@@ -185,7 +197,7 @@ export default { plugins: [showAndTell()] };
 
 ```js
 import { defineConfig } from 'astro/config';
-import showAndTell from 'show-and-tell/astro';
+import showAndTell from '@kumar-lgtm/show-and-tell/astro';
 
 export default defineConfig({ integrations: [showAndTell()] });
 ```
@@ -197,14 +209,14 @@ so it can stay committed.
 
 ```js
 // next.config.mjs (next.config.ts works too)
-import { withShowAndTell } from 'show-and-tell/next';
+import { withShowAndTell } from '@kumar-lgtm/show-and-tell/next';
 
 export default withShowAndTell({ /* your config */ });
 ```
 
 ```jsx
 // app/layout.jsx (or pages/_document.jsx, inside <body>)
-import { ShowAndTell } from 'show-and-tell/react';
+import { ShowAndTell } from '@kumar-lgtm/show-and-tell/react';
 
 export default function RootLayout({ children }) {
   return (

@@ -44,7 +44,7 @@ test('bottom surfaces reserve room, side sheets float without covering the worki
     await ctx.addInitScript(() => {
       localStorage.setItem('feedback-toolbar-reviewer', 'Ana');
       navigator.mediaDevices.getUserMedia = async () => ({ getTracks: () => [{ stop() {} }] });
-      class R { static isTypeSupported() { return true; } constructor() { this.mimeType = 'audio/webm'; } start() {} stop() { setTimeout(() => { this.ondataavailable?.({ data: new Blob(['qa'], { type: 'audio/webm' }) }); this.onstop?.(); }, 0); } }
+      class R { static isTypeSupported() { return true; } constructor() { this.mimeType = 'audio/webm'; } start() {} stop() { setTimeout(() => { this.ondataavailable?.({ data: new Blob([new Uint8Array([0x1a,0x45,0xdf,0xa3]), 'qa'], { type: 'audio/webm' }) }); this.onstop?.(); }, 0); } }
       window.MediaRecorder = R;
     });
     const p = await ctx.newPage();

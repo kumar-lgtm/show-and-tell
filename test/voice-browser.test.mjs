@@ -34,7 +34,7 @@ test('voice toolbar: controlled permissions, pointing, dictation, recovery and r
       window.__voiceQA={denied:false,stopped:0,screenStopped:0,screenMode:'denied'};
       navigator.mediaDevices.getUserMedia=async()=>{if(window.__voiceQA.denied)throw new DOMException('denied','NotAllowedError');return {getTracks:()=>[{stop(){window.__voiceQA.stopped++;}}]};};
       navigator.mediaDevices.getDisplayMedia=async()=>{if(window.__voiceQA.screenMode==='denied')throw new DOMException('denied','NotAllowedError');const track={getSettings:()=>({displaySurface:'browser'}),getCaptureHandle:()=>({handle:'wrong-tab'}),stop(){window.__voiceQA.screenStopped++;}};return {getTracks:()=>[track],getVideoTracks:()=>[track]};};
-      class Recorder{static isTypeSupported(){return true;}constructor(){this.mimeType='audio/webm';this.state='inactive';this.ordinal=window.__voiceQA.recordings=(window.__voiceQA.recordings||0)+1;}start(){this.state='recording';}stop(){this.state='inactive';setTimeout(()=>{this.ondataavailable?.({data:new Blob(['controlled-qa-audio-'+this.ordinal],{type:this.mimeType})});this.onstop?.();},0);}}
+      class Recorder{static isTypeSupported(){return true;}constructor(){this.mimeType='audio/webm';this.state='inactive';this.ordinal=window.__voiceQA.recordings=(window.__voiceQA.recordings||0)+1;}start(){this.state='recording';}stop(){this.state='inactive';setTimeout(()=>{this.ondataavailable?.({data:new Blob([new Uint8Array([0x1a,0x45,0xdf,0xa3]),'controlled-qa-audio-'+this.ordinal],{type:this.mimeType})});this.onstop?.();},0);}}
       window.MediaRecorder=Recorder;
     });
     const p=await context.newPage();p.on('pageerror',e=>errors.push(e.message));if(beforeGoto)await beforeGoto(p);await p.goto(origin);await p.waitForFunction(()=>window.__AGENTATION_KIT_VOICE__);await p.waitForFunction(()=>window.__AGENTATION_KIT_HEALTH__?.ok);return p;
@@ -112,7 +112,7 @@ test('voice toolbar: controlled permissions, pointing, dictation, recovery and r
     const p=await page();
     // A slow recorder: Stop keeps the recording until the audio is in, the
     // gap in which an insets pass used to re-show the box for good.
-    await p.evaluate(()=>{const stop=MediaRecorder.prototype.stop;MediaRecorder.prototype.stop=function(){this.state='inactive';setTimeout(()=>{this.ondataavailable?.({data:new Blob(['slow-qa-audio'],{type:this.mimeType})});this.onstop?.();},400);};void stop;});
+    await p.evaluate(()=>{const stop=MediaRecorder.prototype.stop;MediaRecorder.prototype.stop=function(){this.state='inactive';setTimeout(()=>{this.ondataavailable?.({data:new Blob([new Uint8Array([0x1a,0x45,0xdf,0xa3]),'slow-qa-audio'],{type:this.mimeType})});this.onstop?.();},400);};void stop;});
     const root=()=>p.locator('[data-voice-ui]');
     const box=()=>root().evaluate(h=>{const o=h.shadowRoot.querySelector('.outline');return o.hidden?null:o.getBoundingClientRect().toJSON();});
     // Talk's header matches the other panels: a 13px/600 title, a 28px X.

@@ -120,7 +120,14 @@ function makeServer(entry) {
     }
     const origin = req.headers.origin;
     if (origin && !app.allowed.has(origin)) {
-      if (entry.loopback && LOOPBACK.test(origin)) entry.allow(origin);
+      // Next.js doesn't say which port it took, so the plugin trusts the first
+      // localhost page that asks, and only that one: another local app's page
+      // (a second dev server, a tool's UI) can't read or write this project's notes.
+      if (entry.loopback && !entry.learned && LOOPBACK.test(origin)) {
+        entry.learned = origin;
+        entry.allow(origin);
+        if (entry.log) entry.log.info?.(`show-and-tell: accepting pages from ${origin} (set the plugin's \`origin\` option to choose it yourself)`);
+      }
       else for (const refresh of entry.refreshers) refresh();
     }
     app.handler(req, res);
@@ -219,6 +226,7 @@ export async function acquireReviewServer({ name, port = DEFAULT_PORT, config = 
         else warn();
       },
     };
+    entry.log = log;
     entry.ready = start(entry, { name, port, config, log });
     registry.set(port, entry);
     entry.ready.catch(() => { if (registry.get(port) === entry) registry.delete(port); });
