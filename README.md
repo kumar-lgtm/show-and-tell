@@ -779,6 +779,3 @@ included, but not using it to offer a product or service that competes with
 Agentation. The MIT licence above does not cover Agentation's code; anything
 built from this bundle carries the PolyForm Shield terms too. See
 [`NOTICE.md`](NOTICE.md).
-
-Show and tell is an independent, free project. It is not affiliated with or
-endorsed by Agentation or Benji Taylor, and it is not sold.
