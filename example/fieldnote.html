@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Fieldnote pricing · Show and tell demo</title>
+    <!-- A fictional product page for trying Show and tell: copy to rewrite, a
+         plan to comment on, buttons to tweak. No external assets, so it works
+         offline. `pnpm prototype` serves it with the toolbar loaded. -->
+    <style>
+      :root {
+        --bg: #fafaf6; --card: #fff; --card-alt: #edf3eb; --ink: #163d30; --mute: #52665c;
+        --line: #d5dfd7; --tag: #d6edb4; --space: clamp(20px, 5vw, 120px);
+        --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+        --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.55 var(--sans); }
+      a { color: inherit; text-decoration: none; }
+      a:hover { text-decoration: underline; text-underline-offset: 3px; }
+      .bar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px clamp(20px, 4vw, 40px); border-bottom: 1px solid var(--line); }
+      .brand { font: 600 26px/1 var(--serif); letter-spacing: -0.01em; }
+      nav { display: flex; gap: clamp(14px, 3vw, 28px); font-size: 14px; color: var(--mute); }
+      nav a[aria-current], nav .strong { color: var(--ink); font-weight: 700; }
+      main { max-width: 960px; margin: 0 auto; padding: 32px var(--space) 56px; }
+      @media (min-width: 1000px) { main { padding-inline: 120px; } }
+      h1 { margin: 0 0 20px; max-width: 17ch; font: 500 clamp(34px, 6.4vw, 48px)/1.04 var(--serif); letter-spacing: -0.015em; text-wrap: balance; }
+      .lede { margin: 0 0 28px; max-width: 62ch; color: var(--mute); }
+      .plans { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; }
+      .plan { display: flex; flex-direction: column; padding: 22px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; }
+      .plan.featured { background: var(--card-alt); }
+      .plan header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+      .plan h2 { margin: 0; font: 700 20px/1.3 var(--sans); }
+      .tag { padding: 4px 9px; border-radius: 999px; background: var(--tag); font-size: 12px; font-weight: 700; }
+      .plan p { margin: 6px 0 4px; color: var(--mute); font-size: 14px; }
+      .price { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+      .price b { font: 500 38px/1 var(--serif); }
+      .price span { color: var(--mute); font-size: 12px; line-height: 1.4; }
+      .cta { display: block; width: 100%; min-height: 44px; padding: 10px 16px; border: 0; border-radius: 8px; background: var(--ink); color: #fff; font: 600 14px/1.4 var(--sans); cursor: pointer; }
+      .cta:hover { background: #0f2d23; }
+      .cta:focus-visible, a:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+      .plan ul { list-style: none; margin: 14px 0 0; padding: 14px 0 0; border-top: 1px solid var(--line); display: grid; gap: 10px; font-size: 14px; }
+      .plan li { display: flex; align-items: center; gap: 10px; }
+      .plan li svg, .trial svg { flex: none; width: 16px; height: 16px; }
+      .trial { display: flex; align-items: center; gap: 8px; margin: 20px 0 0; color: var(--mute); font-size: 13px; }
+      h2.section { margin: 48px 0 20px; font: 500 clamp(24px, 4.4vw, 30px)/1.15 var(--serif); letter-spacing: -0.01em; }
+      .faq { margin: 0; }
+      .faq div { padding: 16px 0; border-top: 1px solid var(--line); }
+      .faq dt { font-weight: 700; color: var(--mute); }
+      .faq dd { margin: 4px 0 0; color: var(--mute); }
+      footer { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding: 28px clamp(20px, 4vw, 40px) 120px; border-top: 1px solid var(--line); color: var(--mute); font-size: 13px; }
+      footer .brand { font-size: 22px; color: var(--ink); }
+    </style>
+  </head>
+  <body>
+    <div class="bar">
+      <a class="brand" href="#">Fieldnote</a>
+      <nav aria-label="Main">
+        <a href="#">Product</a>
+        <a href="#" aria-current="page">Pricing</a>
+        <a href="#">Docs</a>
+        <a class="strong" href="#">Sign in</a>
+      </nav>
+    </div>
+    <main>
+      <h1>Pricing that scales with your team</h1>
+      <p class="lede">One place for your projects, notes and next big idea. Start small. Make room as you grow.</p>
+      <div class="plans">
+        <section class="plan" aria-labelledby="plan-starter">
+          <header><h2 id="plan-starter">Starter</h2></header>
+          <p>For small teams finding their rhythm.</p>
+          <div class="price"><b>$12</b><span>per seat<br>per month</span></div>
+          <button class="cta" type="button">Start free trial</button>
+          <ul>
+            <li><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 8.5 3.2 3.2L13 5"/></svg>Unlimited notes &amp; docs</li>
+            <li><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 8.5 3.2 3.2L13 5"/></svg>10 active projects</li>
+            <li><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 8.5 3.2 3.2L13 5"/></svg>Shared team workspace</li>
+            <li><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 8.5 3.2 3.2L13 5"/></svg>Email support</li>
+          </ul>
+        </section>
+        <section class="plan featured" aria-labelledby="plan-team">
+          <header><h2 id="plan-team">Team</h2><span class="tag">Most popular</span></header>
+          <p>For growing teams working in sync.</p>
+          <div class="price"><b>$24</b><span>per seat<br>per month</span></div>
+          <button class="cta" type="button">Start free trial</button>
+          <ul>
+            <li><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 8.5 3.2 3.2L13 5"/></svg>Everything in Starter</li>
+            <li><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 8.5 3.2 3.2L13 5"/></svg>Unlimited projects &amp; guests</li>
+            <li><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 8.5 3.2 3.2L13 5"/></svg>Advanced permissions</li>
+            <li><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 8.5 3.2 3.2L13 5"/></svg>Priority support</li>
+          </ul>
+        </section>
+      </div>
+      <p class="trial"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="6.2"/><path d="m5.4 8.3 1.8 1.8 3.4-3.6"/></svg>14 days free. No credit card. Cancel anytime.</p>
+
+      <h2 class="section">A few things you might be wondering.</h2>
+      <dl class="faq">
+        <div><dt>Can I change plans later?</dt><dd>Absolutely. Upgrade or switch plans from your workspace settings whenever you need to.</dd></div>
+        <div><dt>How does billing work?</dt><dd>Plans are billed monthly per seat. You only pay for the people in your workspace.</dd></div>
+        <div><dt>What happens after my trial?</dt><dd>Choose the plan that fits your team. Your work stays safe while you decide.</dd></div>
+      </dl>
+    </main>
+    <footer>
+      <span class="brand">Fieldnote</span>
+      <span>A little more together. Fictional demo content.</span>
+    </footer>
+  </body>
+</html>

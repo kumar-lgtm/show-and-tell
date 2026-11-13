@@ -1,0 +1,3 @@
+Overall, this page feels too crowded. Rename the starter plan to essentials. Bring the details closer to the button. Otherwise the direction looks good.
+
+Synthetic English speech fixture generated locally with Kokoro-82M (Apache-2.0, voice af_heart), resampled to 16 kHz mono, for transcription QA. No voice cloning. The application itself defaults to multilingual transcription.

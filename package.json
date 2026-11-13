@@ -1,0 +1,64 @@
+{
+  "name": "show-and-tell",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Show and tell: a review toolbar for your local dev server. Reviewers comment, talk, edit text and tweak styles in the page; a coding agent reads, answers and resolves the notes from the terminal. Built on Agentation.",
+  "license": "SEE LICENSE IN LICENSE",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kumar-lgtm/show-and-tell.git"
+  },
+  "homepage": "https://github.com/kumar-lgtm/show-and-tell#readme",
+  "bin": {
+    "show-and-tell": "./bin/show-and-tell.mjs",
+    "agentation-kit": "./bin/agentation-kit.mjs"
+  },
+  "exports": {
+    "./vite": "./integrations/vite.js",
+    "./astro": "./integrations/astro.js",
+    "./next": "./integrations/next.js",
+    "./react": "./integrations/react.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "bin",
+    "server",
+    "integrations",
+    "skill",
+    "dist",
+    "docs/agent-reference.md",
+    "docs/brand.md",
+    "scripts/voice-transcribe-local.py",
+    "toolbar/AGENTATION-LICENSE",
+    "AGENTS.md",
+    "NOTICE.md",
+    "README.md",
+    "VOICE.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=22.5"
+  },
+  "scripts": {
+    "build": "node toolbar/build.mjs && node toolbar/verify.mjs",
+    "test": "node --test --no-warnings 'test/*.test.mjs'",
+    "prototype": "node scripts/prototype.mjs",
+    "listen:prototype": "node scripts/review-listener.mjs",
+    "test:browser": "AGENTATION_KIT_BROWSER_TESTS=1 node --test --no-warnings test/browser.test.mjs test/voice-browser.test.mjs test/agent-work-browser.test.mjs test/coverage-browser.test.mjs test/copy-outline-browser.test.mjs test/copy-view-browser.test.mjs test/copy-ia-browser.test.mjs test/check-browser.test.mjs test/tweak-browser.test.mjs test/critique-browser.test.mjs test/panels-browser.test.mjs test/resize-browser.test.mjs test/keys-browser.test.mjs test/focus-browser.test.mjs test/polish-browser.test.mjs test/look-browser.test.mjs test/playhead-browser.test.mjs"
+  },
+  "devDependencies": {
+    "agentation": "3.0.2",
+    "esbuild": "0.25.12",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  },
+  "peerDependencies": {
+    "react": ">=18"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
+  }
+}

@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Show and tell: retire the red arrow</title>
+    <meta name="description" content="A review toolbar for your local dev server. Point at the page, say or edit what should change, and your coding agent gets the note with its target." />
+    <style>
+      @font-face { font-family: "ST Display"; src: url("assets/fonts/bricolage-grotesque.woff2") format("woff2"); font-weight: 200 800; font-display: swap; }
+      @font-face { font-family: "ST Sans"; src: url("assets/fonts/dm-sans.woff2") format("woff2"); font-weight: 100 1000; font-display: swap; }
+      @font-face { font-family: "ST Mono"; src: url("assets/fonts/dm-mono.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+      :root {
+        --chalk: #fff4e0; --paper: #fffcf5; --ink: #1d1a2f; --tomato: #ff5436; --sun: #ffc72c; --sky: #5bb8ff;
+        --muted: #5e516c; --line: #e6d9c2; --raised: #302a46; --on-ink-muted: #ded2ce;
+        --display: "ST Display", "Bricolage Grotesque", system-ui, sans-serif;
+        --sans: "ST Sans", "DM Sans", system-ui, sans-serif;
+        --mono: "ST Mono", "DM Mono", ui-monospace, Menlo, monospace;
+      }
+      * { box-sizing: border-box; }
+      html { -webkit-text-size-adjust: 100%; }
+      body { margin: 0; background: var(--chalk); color: var(--ink); font: 18px/1.55 var(--sans); }
+      a { color: inherit; text-underline-offset: 3px; }
+      header.top nav a { padding: 10px 0; }
+      a:focus-visible, button:focus-visible, video:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; border-radius: 6px; }
+      .wrap { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+      header.top { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 24px 0; }
+      header.top img { height: 40px; width: auto; display: block; }
+      header.top nav { display: flex; gap: 20px; font-weight: 600; font-size: 16px; white-space: nowrap; }
+      h1, h2 { font-family: var(--display); font-weight: 800; letter-spacing: -0.02em; line-height: 1.04; margin: 0; }
+      h1 { font-size: clamp(48px, 9vw, 112px); }
+      h2 { font-size: clamp(34px, 5vw, 56px); }
+      .lede { font-size: clamp(19px, 2.2vw, 24px); color: var(--muted); max-width: 40ch; margin: 20px 0 0; }
+      .hero { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 32px; align-items: end; padding: 24px 0 40px; }
+      .hero .bub { width: 100%; height: auto; display: block; }
+      .mark { background: linear-gradient(transparent 62%, var(--sun) 62%, var(--sun) 92%, transparent 92%); }
+
+      .film { background: var(--ink); border-radius: 20px; padding: 12px; }
+      .film video { display: block; width: 100%; height: auto; border-radius: 12px; background: var(--ink); }
+      .film .tall { display: none; }
+      .cuts { display: flex; flex-wrap: wrap; gap: 8px 20px; margin: 14px 4px 0; font-size: 16px; color: var(--muted); }
+
+      section { padding: 72px 0 0; }
+      .cols { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 40px; align-items: start; }
+      .cols > p { margin: 0; color: var(--muted); }
+      pre { margin: 0; background: var(--ink); color: var(--chalk); border-radius: 14px; padding: 20px 22px; font: 16px/1.6 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; }
+      pre .c { color: #c3b3bf; }
+      .copy { margin-top: 12px; font: 600 16px var(--sans); padding: 12px 18px; min-height: 44px; border-radius: 10px; border: 0; background: var(--tomato); color: var(--ink); cursor: pointer; }
+      .copy[data-done="1"] { background: var(--ink); color: var(--chalk); }
+      p.small { font-size: 16px; color: var(--muted); margin: 14px 0 0; }
+
+      .ways { list-style: none; margin: 0; padding: 0; border-top: 2px solid var(--ink); }
+      .ways li { display: grid; grid-template-columns: 104px minmax(0, 200px) minmax(0, 1fr); gap: 16px; align-items: baseline; padding: 18px 0; border-bottom: 1px solid var(--line); }
+      .ways kbd { font: 16px var(--mono); background: var(--paper); border: 1px solid var(--line); border-radius: 8px; padding: 4px 10px; justify-self: start; white-space: nowrap; }
+      .ways b { font-family: var(--display); font-size: 26px; font-weight: 700; letter-spacing: -0.01em; }
+      .ways span { color: var(--muted); }
+
+      .old { background: var(--ink); color: var(--chalk); border-radius: 20px; padding: 40px; margin-top: 72px; }
+      .old h2 { color: var(--chalk); }
+      .old ol { margin: 24px 0 0; padding-left: 22px; color: var(--on-ink-muted); max-width: 60ch; }
+      .old li { margin: 6px 0; }
+      .old p { color: var(--on-ink-muted); max-width: 60ch; margin: 20px 0 0; }
+
+      footer { padding: 72px 0 56px; color: var(--muted); font-size: 16px; }
+      footer p { margin: 6px 0; max-width: 70ch; }
+
+      @media (max-width: 760px) {
+        body { font-size: 17px; }
+        .wrap { padding: 0 16px; }
+        header.top nav { gap: 14px; font-size: 15px; }
+        header.top img { height: 32px; }
+        .hero { grid-template-columns: minmax(0, 1fr); gap: 8px; padding-top: 8px; }
+        .hero .bub { width: 132px; order: -1; }
+        .film { padding: 8px; border-radius: 16px; }
+        .film .wide { display: none; }
+        .film .tall { display: block; }
+        .cols { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+        section { padding-top: 56px; }
+        .ways li { grid-template-columns: 92px minmax(0, 1fr); }
+        .ways span { grid-column: 2; }
+        .old { padding: 28px 20px; margin-top: 56px; }
+        pre { font-size: 14px; padding: 16px; }
+      }
+      @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header class="top">
+        <img src="assets/lockup.svg" alt="Show and tell" width="232" height="56" />
+        <nav aria-label="On this page">
+          <a href="#try">Try it</a>
+          <a href="#agent">Agent setup</a>
+          <a href="https://github.com/kumar-lgtm/show-and-tell">Repo</a>
+        </nav>
+      </header>
+
+      <main>
+        <div class="hero">
+          <div>
+            <h1>Retire the <span class="mark">red arrow.</span></h1>
+            <p class="lede">Show and tell is a review toolbar for your local dev server. Point at the page, say or edit what should change, and your coding agent gets the note with its target.</p>
+          </div>
+          <img class="bub" src="assets/bub.svg" alt="Bub, the Show and tell mascot, holding a pencil" width="240" height="240" />
+        </div>
+
+        <div class="film">
+          <video class="wide" controls preload="none" playsinline poster="video/show-and-tell-landscape.jpg" width="1920" height="1080" aria-label="Show and tell explainer, 98 seconds, landscape">
+            <source src="video/show-and-tell-landscape.mp4" type="video/mp4" />
+            <track kind="captions" src="video/captions.vtt" srclang="en" label="English" />
+          </video>
+          <video class="tall" controls preload="none" playsinline poster="video/show-and-tell-vertical.jpg" width="1080" height="1920" aria-label="Show and tell explainer, 98 seconds, vertical">
+            <source src="video/show-and-tell-vertical.mp4" type="video/mp4" />
+            <track kind="captions" src="video/captions.vtt" srclang="en" label="English" />
+          </video>
+        </div>
+        <p class="cuts">
+          <span>98 seconds, with sound and captions.</span>
+          <a href="video/show-and-tell-landscape.mp4">Landscape cut (16:9)</a>
+          <a href="video/show-and-tell-vertical.mp4">Vertical cut (9:16)</a>
+          <a href="https://github.com/kumar-lgtm/show-and-tell/blob/main/docs/video/transcript.md">Transcript</a>
+        </p>
+
+        <div class="old">
+          <h2>The routine it replaces</h2>
+          <ol>
+            <li>Screenshot the page.</li>
+            <li>Draw an arrow on it.</li>
+            <li>Paste it into the agent chat.</li>
+            <li>Explain the arrow in words anyway.</li>
+          </ol>
+          <p>A picture and a paragraph do not tell the agent which element you meant or where it lives in the source. A note left on the page does: it carries the element, the viewport, and a pointer to the file and line.</p>
+          <p>You send the notes as one round, each anchored to its element and its line in the source, so the agent does not spend a turn working out what you meant. That means fewer rounds, less usage spent re-explaining, and the decisions stay with you. It works on anything built in code that runs on a local dev server: websites, designs, videos and tools.</p>
+        </div>
+
+        <section id="ways">
+          <h2>Four ways to say it</h2>
+          <ul class="ways" style="margin-top:28px">
+            <li><kbd>N</kbd><b>Comment</b><span>Click anything on the page and type what should change.</span></li>
+            <li><kbd>V</kbd><b>Talk</b><span>Talk while you click and box things on the page. Transcription runs free on your own machine, and each sentence comes back attached to what you were pointing at. You check the transcript before it is sent.</span></li>
+            <li><kbd>T</kbd><b>Edit text</b><span>Rewrite the words in place. The agent receives the change as a from and a to.</span></li>
+            <li><kbd>Shift T</kbd><b>All text</b><span>Every string on the page in one view, with its role and its file and line. Made for writers and editors.</span></li>
+          </ul>
+          <p class="small">Open the bar first: click the round button in the corner, or press ⌘⇧F (Ctrl⇧F on Windows and Linux). Then press Send when you are done. The agent fixes the source, closes each note, and you check every fix and reopen what is not right.</p>
+        </section>
+
+        <section id="try">
+          <div class="cols">
+            <div>
+              <h2>Try it in a minute</h2>
+              <p class="small">You need Node 22.5 or newer. Nothing to install: the toolbar ships prebuilt. This starts a demo pricing page with the toolbar on it, and your notes stay on your machine.</p>
+            </div>
+            <div>
+              <pre id="try-cmd"><span class="c"># clone, then start the demo page</span>
+git clone https://github.com/kumar-lgtm/show-and-tell.git
+cd show-and-tell
+node scripts/prototype.mjs
+<span class="c"># open http://127.0.0.1:8877, click the round button</span>
+<span class="c"># in the corner, then press N, V or T</span></pre>
+              <button class="copy" type="button" aria-live="polite" data-copy="try-cmd">Copy commands</button>
+            </div>
+          </div>
+        </section>
+
+        <section id="agent">
+          <div class="cols">
+            <div>
+              <h2>Hand it to your agent</h2>
+              <p class="small">Works with Claude Code, Codex, Cursor and anything else that has a shell. Paste this into your agent from inside your project. The setup guide tells it what to do, including how to take everything out again.</p>
+            </div>
+            <div>
+              <pre id="agent-cmd">Set up Show and tell for this project. Clone https://github.com/kumar-lgtm/show-and-tell.git next to this project (not inside it), then follow docs/agent-setup.md in that repo from the top. Tell me the URL to open when the toolbar is live.</pre>
+              <button class="copy" type="button" aria-live="polite" data-copy="agent-cmd">Copy prompt</button>
+              <p class="small">Reading first: <a href="https://github.com/kumar-lgtm/show-and-tell/blob/main/docs/agent-setup.md">the setup guide</a>, <a href="https://github.com/kumar-lgtm/show-and-tell/blob/main/AGENTS.md">how a review round runs</a>, and <a href="https://github.com/kumar-lgtm/show-and-tell/blob/main/README.md">the README</a>.</p>
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <div class="cols">
+            <h2>It leaves nothing behind</h2>
+            <p>The toolbar only loads on localhost. The one line that loads it is kept out of every commit by a local git filter, and one command restores the file byte for byte. With a framework plugin, no loader line is written to your files at all.</p>
+          </div>
+        </section>
+      </main>
+
+      <footer>
+        <p>Show and tell is built on <a href="https://www.npmjs.com/package/agentation">Agentation</a> by Benji Taylor. Licence and third-party notices are in the repo's README and NOTICE.</p>
+        <p>The demo page in the video, Fieldnote, is fictional. The All text scene is a capture of the real view; the other toolbar scenes are drawn from the design.</p>
+      </footer>
+    </div>
+    <script>
+      document.querySelectorAll(".copy").forEach(function (b) {
+        b.addEventListener("click", function () {
+          var text = document.getElementById(b.dataset.copy).innerText;
+          var label = b.textContent;
+          var done = function () { b.dataset.done = "1"; b.textContent = "Copied"; setTimeout(function () { b.dataset.done = ""; b.textContent = label; }, 1600); };
+          var pick = function () { var r = document.createRange(); r.selectNodeContents(document.getElementById(b.dataset.copy)); var sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); b.textContent = "Selected: press copy"; setTimeout(function () { b.textContent = label; }, 2400); };
+          if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, pick); else pick();
+        });
+      });
+    </script>
+  </body>
+</html>

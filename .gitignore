@@ -1,0 +1,9 @@
+node_modules
+.DS_Store
+*.log
+.claude/
+.worktrees/
+.prototype-data/
+.prototype-models/
+qa-output/
+__pycache__/

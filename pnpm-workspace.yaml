@@ -1,0 +1,6 @@
+# This repo is its own pnpm root. Without this file pnpm can walk up into a
+# parent workspace and install nothing here.
+# esbuild's postinstall stays off (pnpm 11 fails a fresh install on an undecided
+# build script); the platform binary from esbuild's optional dependency is enough.
+allowBuilds:
+  esbuild: false
