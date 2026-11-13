@@ -1,11 +1,18 @@
+# Security updates only (Settings → Code security → Dependabot security updates).
+# Routine version bumps are off: development happens in a separate private repo
+# and this one is published from it, so a bump merged here would be overwritten.
+# Agentation is pinned on purpose: toolbar/build.mjs patches that exact version.
 version: 2
 updates:
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: monthly
+    open-pull-requests-limit: 0
   - package-ecosystem: npm
     directory: /
     schedule:
       interval: monthly
-    open-pull-requests-limit: 3
+    open-pull-requests-limit: 0
+    ignore:
+      - dependency-name: agentation

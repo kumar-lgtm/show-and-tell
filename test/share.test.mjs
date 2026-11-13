@@ -264,7 +264,7 @@ test('CLI: --tunnel without cloudflared explains how to install it or use anothe
   });
   let out = '';
   child.stdout.on('data', (d) => { out += d; });
-  for (let i = 0; i < 100 && !out.includes('ngrok'); i++) await new Promise((r) => setTimeout(r, 50));
+  for (let i = 0; i < 400 && !out.includes('ngrok'); i++) await new Promise((r) => setTimeout(r, 50)); // up to 20s: a cold CI runner is slow to start node
   assert.match(out, /needs cloudflared/);
   assert.match(out, /brew install cloudflared/);
   assert.match(out, new RegExp(`ngrok http ${port}`));
