@@ -20,7 +20,8 @@ const lock = join(directory, 'listener.pid');
 const workerLock = join(directory, 'worker.pid');
 const runningPid = (file, group = false) => {
   try { const pid=Number(readFileSync(file,'utf8')); if(!Number.isInteger(pid)||pid<1)return null;process.kill(group && process.platform !== 'win32' ? -pid : pid,0);return pid; }
-  catch(e){if(!['ENOENT','ESRCH'].includes(e.code))throw e;return null;}
+  // EPERM: that number now belongs to someone else's process (macOS reuses PIDs), so ours is gone.
+  catch(e){if(!['ENOENT','ESRCH','EPERM'].includes(e.code))throw e;return null;}
 };
 const orphan=runningPid(workerLock,true);
 if(orphan)throw new Error(`A worker is still running (PID ${orphan}); stop it before restarting the listener.`);
