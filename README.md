@@ -18,17 +18,27 @@ node scripts/prototype.mjs   # try it: a demo page with the toolbar on http://12
 [transcript](docs/video/transcript.md). The same film plays on the demo page,
 [`docs/index.html`](docs/index.html): open that file in a browser.
 
-**Install** (Node 22.5 or newer; tested on macOS, voice needs macOS or Linux):
+**Install** (Node 22.5 or newer; tested on macOS, voice needs macOS or Linux).
+It installs from this GitHub repo; pin a release tag so you get a build you
+can verify:
 
 ```bash
-pnpm add -D @kumar-lgtm/show-and-tell    # in a project, for the framework plugins
-npx @kumar-lgtm/show-and-tell --help     # or run the CLI without installing
+pnpm add -D github:kumar-lgtm/show-and-tell#v0.1.0     # in a project, for the framework plugins
+git clone --branch v0.1.0 https://github.com/kumar-lgtm/show-and-tell.git   # or a copy next to your project
 ```
 
-Every release on npm is built and published by this repo's GitHub Actions
-workflow, with [provenance](https://docs.npmjs.com/generating-provenance-statements):
-the npm page links each version to the commit and build that made it. The
-package has no dependencies and no install scripts.
+Each [release](https://github.com/kumar-lgtm/show-and-tell/releases) also has
+the package file, built by this repo's release workflow with a signed
+provenance attestation. To check a download came from that workflow, unchanged:
+
+```bash
+gh attestation verify kumar-lgtm-show-and-tell-0.1.0.tgz -R kumar-lgtm/show-and-tell
+pnpm add -D ./kumar-lgtm-show-and-tell-0.1.0.tgz
+```
+
+The package has no dependencies and no install scripts: nothing runs when you
+install it. The toolbar ships prebuilt in `dist/`, and CI checks that it matches
+the source on every push.
 
 **Setting it up with an agent?** Paste this into your coding agent from inside
 your project:
@@ -182,7 +192,7 @@ added at serve time, so there's no second terminal and nothing to remove before
 committing. Builds are untouched.
 
 ```bash
-pnpm add -D @kumar-lgtm/show-and-tell     # or npm i -D, yarn add -D, bun add -d
+pnpm add -D github:kumar-lgtm/show-and-tell#v0.1.0     # or npm i -D, yarn add -D
 ```
 
 **Vite** (`vite.config.js`):

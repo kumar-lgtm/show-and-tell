@@ -29,6 +29,21 @@
   model from Hugging Face. Audio never leaves your machine unless you set
   `SHOW_AND_TELL_TRANSCRIBE_URL` to a service of your own.
 
+## Checking what you install
+
+Show and tell installs from this repo, not from a package registry. Every
+release is built by `.github/workflows/release.yml` from its tag, and its
+package file carries a signed provenance attestation:
+
+```bash
+gh attestation verify kumar-lgtm-show-and-tell-<version>.tgz -R kumar-lgtm/show-and-tell
+```
+
+Release tags can't be moved or deleted, and `main` can't be force-pushed. Every
+push runs the tests, checks the shipped bundle matches its source, and runs
+CodeQL; pull requests also get a dependency review. Actions are pinned to
+commit hashes.
+
 ## Reporting a vulnerability
 
 Please report it privately through GitHub:

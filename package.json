@@ -1,6 +1,7 @@
 {
   "name": "@kumar-lgtm/show-and-tell",
   "version": "0.1.0",
+  "private": true,
   "type": "module",
   "description": "Show and tell: a review toolbar for your local dev server. Reviewers comment, talk, edit text and tweak styles in the page; a coding agent reads, answers and resolves the notes from the terminal. Built on Agentation.",
   "license": "SEE LICENSE IN LICENSE",
@@ -45,8 +46,7 @@
     "test": "node --test --no-warnings 'test/*.test.mjs'",
     "prototype": "node scripts/prototype.mjs",
     "listen:prototype": "node scripts/review-listener.mjs",
-    "test:browser": "AGENTATION_KIT_BROWSER_TESTS=1 node --test --no-warnings test/browser.test.mjs test/voice-browser.test.mjs test/agent-work-browser.test.mjs test/coverage-browser.test.mjs test/copy-outline-browser.test.mjs test/copy-view-browser.test.mjs test/copy-ia-browser.test.mjs test/check-browser.test.mjs test/tweak-browser.test.mjs test/critique-browser.test.mjs test/panels-browser.test.mjs test/resize-browser.test.mjs test/keys-browser.test.mjs test/focus-browser.test.mjs test/polish-browser.test.mjs test/look-browser.test.mjs test/playhead-browser.test.mjs",
-    "prepublishOnly": "node toolbar/verify.mjs"
+    "test:browser": "AGENTATION_KIT_BROWSER_TESTS=1 node --test --no-warnings test/browser.test.mjs test/voice-browser.test.mjs test/agent-work-browser.test.mjs test/coverage-browser.test.mjs test/copy-outline-browser.test.mjs test/copy-view-browser.test.mjs test/copy-ia-browser.test.mjs test/check-browser.test.mjs test/tweak-browser.test.mjs test/critique-browser.test.mjs test/panels-browser.test.mjs test/resize-browser.test.mjs test/keys-browser.test.mjs test/focus-browser.test.mjs test/polish-browser.test.mjs test/look-browser.test.mjs test/playhead-browser.test.mjs"
   },
   "devDependencies": {
     "agentation": "3.0.2",
@@ -76,10 +76,6 @@
     "annotations",
     "dev-tools"
   ],
-  "publishConfig": {
-    "access": "public",
-    "provenance": true
-  },
   "bugs": {
     "url": "https://github.com/kumar-lgtm/show-and-tell/issues"
   }

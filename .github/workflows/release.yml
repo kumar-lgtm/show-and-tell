@@ -1,14 +1,8 @@
-# Publish to npm when a version tag (v0.2.0) is pushed. The package is built and
-# published here, never from a laptop, with npm provenance: the npm page links
-# the version to this workflow run and its commit.
-#
-# Auth: npm trusted publishing (OIDC, no stored token) once it is set up for
-# @kumar-lgtm/show-and-tell on npmjs.com (Settings → Trusted publisher →
-# GitHub Actions, repo kumar-lgtm/show-and-tell, workflow release.yml).
-# If the trusted publisher names an environment, it must be `npm` (below).
-# Trusted publishing needs npm 11.5.1+; the job installs a pinned npm 11.
-# Until then, a granular NPM_TOKEN secret (publish rights on this package only)
-# is used; delete it once trusted publishing works.
+# A version tag (v0.2.0) makes a GitHub release. Nothing is published to npm:
+# people install from this repo. The workflow builds the package file here,
+# never on a laptop, and signs a provenance attestation for it, so anyone can
+# check the file came from this repo's workflow at that tag:
+#   gh attestation verify kumar-lgtm-show-and-tell-<v>.tgz -R kumar-lgtm/show-and-tell
 name: Release
 on:
   push:
@@ -19,15 +13,14 @@ concurrency:
   group: release
   cancel-in-progress: false
 jobs:
-  publish:
+  release:
     if: github.repository == 'kumar-lgtm/show-and-tell'
     runs-on: ubuntu-latest
-    environment: npm
-    env:
-      HAS_TOKEN: ${{ secrets.NPM_TOKEN != '' }}
+    environment: release
     permissions:
-      contents: write   # the GitHub release
-      id-token: write   # npm provenance and trusted publishing
+      contents: write       # the GitHub release
+      id-token: write       # signing the attestation
+      attestations: write   # storing it
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -38,30 +31,23 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
-          registry-url: https://registry.npmjs.org
       - name: Tag matches package.json
         run: |
           v="$(node -p 'require("./package.json").version')"
           [ "v$v" = "$GITHUB_REF_NAME" ] || { echo "tag $GITHUB_REF_NAME but package.json says $v"; exit 1; }
-      - run: npm install -g npm@11.6.2 && npm --version
       - run: sudo apt-get update && sudo apt-get install -y ripgrep
       - run: pnpm install --frozen-lockfile
       - run: pnpm build && git diff --exit-code -- dist
       - run: node toolbar/verify.mjs
       - run: pnpm test
-      - name: Pack and checksum
+      - name: Package file and checksum
         run: |
           npm pack
           sha256sum kumar-lgtm-show-and-tell-*.tgz > SHA256SUMS
           cat SHA256SUMS
-      - name: Publish (trusted publishing)
-        if: env.HAS_TOKEN != 'true'
-        run: npm publish kumar-lgtm-show-and-tell-*.tgz --provenance --access public
-      - name: Publish (token, first release only)
-        if: env.HAS_TOKEN == 'true'
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish kumar-lgtm-show-and-tell-*.tgz --provenance --access public
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: kumar-lgtm-show-and-tell-*.tgz
       - name: GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
